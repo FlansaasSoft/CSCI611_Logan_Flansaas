@@ -1,0 +1,6 @@
+names:
+  0: traffic_sign
+path: data/raw
+test: splits/test.txt
+train: splits/train.txt
+val: splits/val.txt

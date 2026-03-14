@@ -1,7 +1,14 @@
-The project can be run with the CLI command: python3 YOLO_model.py path_to_your_data_directory
-The python script assumes and requires you have 2 directories named "annotations" and "images" in your data directory to run
+**Assignment 3: Small Object Detection Using YOLO**
 
-Dataset used for this project is the Mapillary Traffic Sign Dataset
+Dataset used for this project is the Mapillary Traffic Sign Dataset, and the script assumes that the data is in the same format as MTSD
+
+The project can be run with the CLI command: python3 YOLO_model.py path_to_your_dataset_directory
+
+If run without an argument specifying a path to your dataset directory, script will default to /data/raw/ for the dataset directory
+
+The python script assumes and requires you have 2 directories named "annotations" and "images" in your dataset directory to read from
+
+**MTSD data links:**
 
 Annotations Download Link: https://scontent-sjc6-1.xx.fbcdn.net/m1/v/t6/An90x89nHvauCK1fqMJ8110KeTjNo5Si7rzhvwIMCu5xI9_GhWBGOIXaFvu6o53NuNpBMzdC9qsjAVR8sLv8m6WoFfn6Qd4NjMYKNW4NCKVp6gx3MhZtwf3cZR94wFhou5lPI0hGUw.zip?_nc_gid=DsonAv-KBpR7IibJMTYhpg&_nc_oc=AdlhqWr1yta_EtyqrSOZRYY99yJZepTsIp0HPh_g-nW0QSRgKI9_X3SoFmaqKbB2MKI&ccb=10-5&oh=00_Afzh0Y5v5zocg21taT5nMmDwwmhV4DOTM-uvYCUpLzaq5Q&oe=69D97008&_nc_sid=6de079
 
