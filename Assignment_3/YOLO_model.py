@@ -93,7 +93,7 @@ def prepareYOLOAnnotations(annoDict, imgKeys, outputPath):
 				height = (obj['bbox']['ymax'] - obj['bbox']['ymin']) / imgDimensions[1]
 				fid.write(f"{class_id} {x_center} {y_center} {width} {height}\n")
 	
-def splitDataset(imgKeys, outputPath, testSize=0.1, validSize=0.2, randomSeed=42):
+def splitDataset(dataDir, imgKeys, outputPath, testSize=0.1, validSize=0.2, randomSeed=42):
 	outputPath = Path(outputPath)
 	outputPath.mkdir(parents=True, exist_ok=True)
 
@@ -109,11 +109,11 @@ def splitDataset(imgKeys, outputPath, testSize=0.1, validSize=0.2, randomSeed=42
 
 	with open(outputPath / "train.txt", 'w') as trainFile, open(outputPath / "val.txt", 'w') as validFile, open(outputPath / "test.txt", 'w') as testFile:
 		for key in trainKeys:
-			trainFile.write(f"images/{key}.jpg\n")
+			trainFile.write(f"{dataDir}/images/{key}.jpg\n")
 		for key in validKeys:
-			validFile.write(f"images/{key}.jpg\n")
+			validFile.write(f"{dataDir}/images/{key}.jpg\n")
 		for key in testKeys:
-			testFile.write(f"images/{key}.jpg\n")
+			testFile.write(f"{dataDir}/images/{key}.jpg\n")
 
 def createDataYAML(dataDir, outputPath):
 	outputPath = Path(outputPath)
@@ -132,9 +132,9 @@ def createDataYAML(dataDir, outputPath):
 	
 	return outputPath / "data.yaml"
 
-def testModel(model, yamlPath, outputPath, imgSize=640):
-	results = model.val(data=yamlPath, split="test", imgsz=imgSize, single_cls=True, conf=0.25, iou=0.45, save_txt=True, save_conf=True, save_json=True, project=outputPath, name="yolo8vnBaselineTest", exist_ok=True)
-	print(results)
+def testModel(model, yamlPath, outputPath, runName="yolo8vnBaselineTest", imgSize=640, conf=0.25, iou=0.5):
+	results = model.val(data=yamlPath, split="test", imgsz=imgSize, single_cls=True, conf=conf, iou=iou, save_txt=True, save_conf=True, save_json=True, project=outputPath, name=runName, exist_ok=True)
+	print(results.box.map)
 		
 def dataLoader(batch_size=32, valid_size=0.2, shuffle=True, random_seed=42):
 	transform = transforms.Compose([
@@ -161,12 +161,13 @@ def dataLoader(batch_size=32, valid_size=0.2, shuffle=True, random_seed=42):
 	return train_loader, valid_loader
 
 if __name__ == "__main__":
-	model = YOLO("yolov8n.pt")
+	baselineModel = YOLO("yolov8n.pt")
 	dataDir = sys.argv[1] if len(sys.argv) > 1 else "data/raw"
 	yoloAnnoDir = dataDir + "/labels"
 	splitsDir = dataDir + "/splits"
 	annotationDir, imgDir, annoDict, imgKeys = getDirsKeysAndAnnos(dataDir)
-	makeMTSDAnnotatedSamples(annoDict, imgDir, imgKeys, "outputs/gt_samples", numSamples=10)
-	prepareYOLOAnnotations(annoDict, imgKeys, yoloAnnoDir)
-	splitDataset(imgKeys, splitsDir)
+	#makeMTSDAnnotatedSamples(annoDict, imgDir, imgKeys, "outputs/gt_samples", numSamples=10)
+	#prepareYOLOAnnotations(annoDict, imgKeys, yoloAnnoDir)
+	splitDataset(dataDir, imgKeys, splitsDir)
 	yamlPath = createDataYAML(dataDir, dataDir)
+	testModel(baselineModel, yamlPath, "outputs")
