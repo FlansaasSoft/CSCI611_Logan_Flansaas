@@ -70,6 +70,7 @@ def makeMTSDAnnotatedSamples(annoDict, imgDir, imgKeys, outputPath, numSamples=1
 	outputPath = Path(outputPath)
 	outputPath.mkdir(parents=True, exist_ok=True)
 
+	random.seed(randomSeed)
 	selectedKeys = random.sample(imgKeys, min(numSamples, len(imgKeys)))
 
 	for key in selectedKeys:
@@ -132,42 +133,78 @@ def createDataYAML(dataDir, outputPath):
 	
 	return outputPath / "data.yaml"
 
-def testModel(model, yamlPath, outputPath, runName="yolo8vnBaselineTest", imgSize=640, conf=0.25, iou=0.5):
+def validateModel(model, yamlPath, outputPath, runName="yolo8vnBaselineTest", imgSize=640, conf=0.25, iou=0.5):
 	results = model.val(data=yamlPath, split="test", imgsz=imgSize, single_cls=True, conf=conf, iou=iou, save_txt=True, save_conf=True, save_json=True, project=outputPath, name=runName, exist_ok=True)
 	print(results.box.map)
-		
-def dataLoader(batch_size=32, valid_size=0.2, shuffle=True, random_seed=42):
-	transform = transforms.Compose([
-		transforms.Resize((224, 224)),
-		transforms.ToTensor(),
-	])
 
-	dataset = datasets.ImageFolder(root='mtsd_fully_annotated_images_train0/', transform=transform)
-	dataset_size = len(dataset)
-	indices = list(range(dataset_size))
-	split = int(np.floor(valid_size * dataset_size))
-
-	if shuffle:
-		np.random.seed(random_seed)
-		np.random.shuffle(indices)
-
-	train_indices, valid_indices = indices[split:], indices[:split]
-	train_sampler = SubsetRandomSampler(train_indices)
-	valid_sampler = SubsetRandomSampler(valid_indices)
-
-	train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, sampler=train_sampler)
-	valid_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler)
-
-	return train_loader, valid_loader
+def trainModel(model, yamlPath, outputPath, runName="yolo8vnBaselineTrain", epochs=30, batch_size=8, imgSize=640, dataFraction=1, trainTime=4, numWorkers=2, hsvH=0.015, hsvS=0.7, hsvV=0.4, degrees=0.0, translate=0.1, fliplr=0.5, scale=0.5, shear=0.0, perspective=0.0, mosaic=1.0, mixup=0.0, erase=0.4):
+	model.train(data=yamlPath, epochs=epochs, time=trainTime, patience=5,batch=batch_size, imgsz=imgSize, fraction=dataFraction, single_cls=True, project=outputPath, name=runName, exist_ok=True, workers=numWorkers, hsv_h=hsvH, hsv_s=hsvS, hsv_v=hsvV, degrees=degrees, translate=translate, fliplr=fliplr, scale=scale, shear=shear, perspective=perspective, erasing=erase, mosaic=mosaic, mixup=mixup)
 
 if __name__ == "__main__":
+	PREPDATA = False  # Set to True to prepare data (convert annotations, split dataset, create YAML), False to skip and assume it's already done
+	TRAIN = False  # Set to True to enable training, False to only run validation
 	baselineModel = YOLO("yolov8n.pt")
+	retrainedModel = YOLO("yolov8n.pt")
+	highResModel = YOLO("yolov8n.pt")
+	dataAugmentedModel = YOLO("yolov8n.pt")
 	dataDir = sys.argv[1] if len(sys.argv) > 1 else "data/raw"
+
+	gtSampleImg = visualize_gt("-0zd9UVk577mVT2hpqPEEQ", load_annotation("-0zd9UVk577mVT2hpqPEEQ", annotation_dir=dataDir + "/annotations"), image_dir=dataDir + "/images")
+	plt.imshow(gtSampleImg)
+	plt.axis('off')
+	plt.show()
+	sampleImgPath = dataDir + "/images/-0zd9UVk577mVT2hpqPEEQ.jpg"
+	results = baselineModel(sampleImgPath)
+	annotatedImg = results[0].plot()
+	plt.imshow(annotatedImg[...,::-1])
+	plt.axis('off')
+	plt.show()
+
 	yoloAnnoDir = dataDir + "/labels"
 	splitsDir = dataDir + "/splits"
 	annotationDir, imgDir, annoDict, imgKeys = getDirsKeysAndAnnos(dataDir)
-	#makeMTSDAnnotatedSamples(annoDict, imgDir, imgKeys, "outputs/gt_samples", numSamples=10)
-	#prepareYOLOAnnotations(annoDict, imgKeys, yoloAnnoDir)
-	splitDataset(dataDir, imgKeys, splitsDir)
 	yamlPath = createDataYAML(dataDir, dataDir)
-	testModel(baselineModel, yamlPath, "outputs")
+
+	if PREPDATA == True:
+		makeMTSDAnnotatedSamples(annoDict, imgDir, imgKeys, "outputs/gt_samples", numSamples=10)
+		prepareYOLOAnnotations(annoDict, imgKeys, yoloAnnoDir)
+		splitDataset(dataDir, imgKeys, splitsDir)
+	if TRAIN == True:
+		trainModel(retrainedModel, yamlPath, "outputs", runName="yolo8vnRetrained", imgSize=416, dataFraction=0.2, hsvH=0.0, hsvS=0.0, hsvV=0.0, degrees=0.0, translate=0.0, fliplr=0.0, scale=0.0, shear=0.0, perspective=0.0, mosaic=0, mixup=0.0, erase=0.0) # No data augmentation
+		trainModel(dataAugmentedModel, yamlPath, "outputs", runName="yolo8vnDataAugmented", imgSize=416, dataFraction=0.2, hsvH=0.015, hsvS=0.7, hsvV=0.4, degrees=10.0, translate=0.1, fliplr=0.5, scale=0.5, shear=0.0, perspective=0.0, mosaic=1.0, mixup=0.0, erase=0.4) # With data augmentation
+		trainModel(highResModel, yamlPath, "outputs", runName="yolo8vnHighRes", imgSize=640, dataFraction=0.2, hsvH=0.015, hsvS=0.7, hsvV=0.4, degrees=10.0, translate=0.1, fliplr=0.5, scale=0.5, shear=0.0, perspective=0.0, mosaic=1.0, mixup=0.0, erase=0.4) # With data augmentation and higher resolution
+
+	#validateModel(baselineModel, yamlPath, "outputs")
+
+	retrainedModel = YOLO("runs/detect/outputs/yolo8vnRetrained/weights/best.pt")
+	dataAugmentedModel = YOLO("runs/detect/outputs/yolo8vnDataAugmented/weights/best.pt")
+	highResModel = YOLO("runs/detect/outputs/yolo8vnHighRes/weights/best.pt")
+
+	confTestList = [0.25, 0.5, 0.75]
+	iouTestList = [0.5, 0.65, 0.8]
+	for conf in confTestList:
+		for iou in iouTestList:
+			print(f"Evaluating retrained model with conf={conf} and iou={iou}...")
+			validateModel(retrainedModel, yamlPath, "outputs", runName=f"yolo8vnRetrainedTest_conf{conf}_iou{iou}", imgSize=416, conf=conf, iou=iou)
+			print(f"Evaluating data augmented model with conf={conf} and iou={iou}...")
+			validateModel(dataAugmentedModel, yamlPath, "outputs", runName=f"yolo8vnDataAugmentedTest_conf{conf}_iou{iou}", imgSize=416, conf=conf, iou=iou)
+			print(f"Evaluating high res model with conf={conf} and iou={iou}...")
+			validateModel(highResModel, yamlPath, "outputs", runName=f"yolo8vnHighResTest_conf{conf}_iou{iou}", imgSize=640, conf=conf, iou=iou)
+	
+	results = retrainedModel(sampleImgPath)
+	annotatedImg = results[0].plot()
+	plt.imshow(annotatedImg[...,::-1])
+	plt.axis('off')
+	plt.show()
+
+	results = dataAugmentedModel(sampleImgPath)
+	annotatedImg = results[0].plot()
+	plt.imshow(annotatedImg[...,::-1])
+	plt.axis('off')
+	plt.show()
+
+	results = highResModel(sampleImgPath)
+	annotatedImg = results[0].plot()
+	plt.imshow(annotatedImg[...,::-1])
+	plt.axis('off')
+	plt.show()
