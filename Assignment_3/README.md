@@ -8,6 +8,8 @@ If run without an argument specifying a path to your dataset directory, script w
 
 The python script assumes and requires you have 2 directories named "annotations" and "images" in your dataset directory to read from
 
+Model weights can be found the non test directories inside the outputs folder. Prediction samples, and performance graphs can be found in the outputs folder under their respective test directories.
+
 **MTSD data links:**
 
 Annotations Download Link: https://scontent-sjc6-1.xx.fbcdn.net/m1/v/t6/An90x89nHvauCK1fqMJ8110KeTjNo5Si7rzhvwIMCu5xI9_GhWBGOIXaFvu6o53NuNpBMzdC9qsjAVR8sLv8m6WoFfn6Qd4NjMYKNW4NCKVp6gx3MhZtwf3cZR94wFhou5lPI0hGUw.zip?_nc_gid=DsonAv-KBpR7IibJMTYhpg&_nc_oc=AdlhqWr1yta_EtyqrSOZRYY99yJZepTsIp0HPh_g-nW0QSRgKI9_X3SoFmaqKbB2MKI&ccb=10-5&oh=00_Afzh0Y5v5zocg21taT5nMmDwwmhV4DOTM-uvYCUpLzaq5Q&oe=69D97008&_nc_sid=6de079
